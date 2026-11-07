@@ -1,19 +1,14 @@
-# Security notes
+# Security Model and Threat Analysis
 
-## Threat model
+## Defended Threats
 
-`trysac-backup-verifier` is a pure library without I/O. The main risks are:
+- **Path Traversal**: `is_unsafe_path` rejects empty names, NUL characters, absolute paths (`/x`, `C:x`, `\\host`), `..` components, backslashes, and Windows reserved device names (CON, PRN, AUX, NUL, COM1-9, LPT1-9). This is consistent across all operating systems.
+- **Decompression Bombs**: Verification streams archives in 1 MiB chunks, enforcing strict byte counts against `Limits` (default: 100,000 members, 10 GiB total, 4 GiB per member).
+- **Device Nodes and Links**: Symlinks, hardlinks, and device nodes are classified as `unsupported_member` and are never extracted.
+- **Restore Safety**: `restore_check` enforces existence of an empty destination, creates directories using `mkdir`, and writes files using `xb` mode to prevent overwriting or following existing file handles.
 
-- **Supply chain**: a compromised dependency or CI action. Mitigation: no runtime dependencies,
-  Dependabot weekly updates, actions pinned to major versions, minimal workflow permissions.
-- **Leaked secrets**: tokens committed by mistake. Mitigation: `gitleaks` runs in the local gates
-  and in CI; `.env` files are git-ignored.
-- **Untrusted input**: callers may pass hostile strings. Mitigation: validate input and fail with
-  explicit exceptions; never `eval`, `exec` or deserialize untrusted data.
+## Not Defended
 
-## Publishing
-
-Releases are published to PyPI with trusted publishing (OIDC) when available, never with a
-long-lived token stored in the repository.
-
-To report a vulnerability, see [SECURITY.md](../SECURITY.md).
+- **Encrypted Archives**: Does not support decryption; encrypted archives are treated as unreadable.
+- **Malicious Payload**: Does not perform virus or malware scanning on valid file contents.
+- **TOCTOU**: Destination directory integrity is not defended against concurrent modification during `restore_check`.

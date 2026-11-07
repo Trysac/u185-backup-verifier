@@ -19,6 +19,9 @@ classifiers = [
 ]
 dependencies = []
 
+[project.scripts]
+backup-verifier = "backup_verifier.__main__:main"
+
 [project.urls]
 Homepage = "https://github.com/Trysac/u185-backup-verifier"
 Source = "https://github.com/Trysac/u185-backup-verifier"
