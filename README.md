@@ -1,48 +1,43 @@
 # backup-verifier
 
-[![PyPI version](https://img.shields.io/pypi/v/trysac-backup-verifier)](https://pypi.org/project/trysac-backup-verifier/)
-[![License: MIT](https://img.shields.io/pypi/l/trysac-backup-verifier)](LICENSE)
 [![CI](https://github.com/Trysac/u185-backup-verifier/actions/workflows/ci.yml/badge.svg)](https://github.com/Trysac/u185-backup-verifier/actions/workflows/ci.yml)
 
-Verify backup archives against a SHA-256 manifest, test restores safely into an empty directory and check freshness with an injected clock
+Backups are often written nightly but never read until critical failures, potentially revealing truncation or corruption. This utility provides deterministic backup archive verification against cryptographic manifests, safe restoration simulation, and freshness monitoring.
 
-## Problem
+## Installation
 
-Describe in two or three sentences the concrete problem this utility solves, who hits it, and what
-they do today without it. Replace this paragraph when the first real feature lands.
-
-## Install
-
-```sh
+```bash
 pip install trysac-backup-verifier
-# or
-uv add trysac-backup-verifier
 ```
 
-Requires Python 3.10 or newer. No runtime dependencies.
-
-## Usage
+## Usage Example
 
 ```python
-import backup_verifier
+from pathlib import Path
+from backup_verifier import create_manifest, verify_archive
 
-# normalize() trims surrounding whitespace and lower-cases the text.
-print(backup_verifier.normalize("  Hello World "))  # -> "hello world"
-
-# Blank input is rejected explicitly instead of returning an empty string.
-try:
-    backup_verifier.normalize("   ")
-except ValueError as exc:
-    print(f"rejected: {exc}")
+manifest = create_manifest(Path("./data"))
+Path("manifest.json").write_text(manifest.to_json())
+report = verify_archive(Path("backup.tar.gz"), manifest)
+if not report.ok:
+    print(f"Found {len(report.issues)} backup issues:", [i.code for i in report.issues])
 ```
 
-## Documentation
+## Public API Summary
 
-- [Architecture](docs/ARCHITECTURE.md) and [decisions](docs/decisions/)
-- [Testing](docs/TESTING.md) and [security](docs/SECURITY.md)
-- [Project record](docs/PROJECT.md) and [stack](docs/STACK.md)
-- [Changelog](CHANGELOG.md) and [contributing guide](CONTRIBUTING.md)
+- `create_manifest(root: Path, *, max_files: int = 100_000) -> Manifest`
+- `Manifest` (dataclass, `to_json()`/`from_json()`): Deterministic cryptographic manifest.
+- `verify_archive(archive: Path, manifest: Manifest, *, limits: Limits = Limits(), on_event=None) -> Report`
+- `restore_check(archive: Path, manifest: Manifest, dest: Path, *, limits: Limits = Limits(), on_event=None) -> Report`
+- `check_freshness(backups: Sequence[BackupInfo], *, now: datetime, max_age: timedelta, min_count: int = 1) -> list[Issue]`
+- `Limits` (dataclass): Bounds for `max_members`, `max_total_bytes`, and `max_member_bytes`.
 
-## License
+### Limits and Errors
 
-[MIT](LICENSE) (c) 2026 Miguel Gomez
+Verification detects `missing`, `extra`, `hash_mismatch`, `size_mismatch`, `unsafe_path`, `unsupported_member`, `duplicate_member`, `stale`, `too_few`, and `restore_mismatch`. Errors raise `BackupError` with codes `unreadable_archive`, `limit_exceeded`, `invalid_manifest`, `invalid_option`, or `dest_not_empty`.
+
+## Why not Restic?
+
+This utility is designed for simple standard-format archives (tar/zip), providing a lightweight, dependency-free method to verify integrity without requiring a proprietary backup repository format.
+
+See docs/SECURITY.md for safety guarantees.
