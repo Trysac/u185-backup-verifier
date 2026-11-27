@@ -6,8 +6,10 @@ Backups are often written nightly but never read until critical failures, potent
 
 ## Installation
 
+Not published to PyPI yet. Install it from GitHub:
+
 ```bash
-pip install trysac-backup-verifier
+pip install "git+https://github.com/Trysac/u185-backup-verifier"
 ```
 
 ## Usage Example
